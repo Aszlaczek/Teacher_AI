@@ -2,18 +2,11 @@
 
 import { useState } from "react";
 import LanguageBar from "./LanguageBar";
-import ModeTabs from "./ModeTabs";
 import ResultCard from "./ResultCard";
 import type { LangCode } from "@/lib/languages";
-import type { Mode, TeachResponse } from "@/lib/types";
-
-const PLACEHOLDERS: Record<Mode, string> = {
-  translator: "np. „serendipity” albo „She don't like coffee.”",
-  grammar: "np. „dlaczego 'have been' a nie 'have be'?”",
-};
+import type { TeachResponse } from "@/lib/types";
 
 export default function TeacherPanel() {
-  const [mode, setMode] = useState<Mode>("translator");
   const [sourceLang, setSourceLang] = useState<LangCode>("pl");
   const [targetLang, setTargetLang] = useState<LangCode>("en");
   const [input, setInput] = useState("");
@@ -48,7 +41,7 @@ export default function TeacherPanel() {
       const res = await fetch("/api/teach", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ mode, sourceLang, targetLang, input: input.trim() }),
+        body: JSON.stringify({ sourceLang, targetLang, input: input.trim() }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -63,48 +56,53 @@ export default function TeacherPanel() {
   }
 
   return (
-    <div className="w-full max-w-2xl">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <ModeTabs mode={mode} onChange={setMode} />
-        <LanguageBar
-          sourceLang={sourceLang}
-          targetLang={targetLang}
-          onSourceChange={handleSourceChange}
-          onTargetChange={handleTargetChange}
-          onSwap={handleSwap}
-        />
-      </div>
+    <div className="w-full max-w-2xl space-y-6">
+      <LanguageBar
+        sourceLang={sourceLang}
+        targetLang={targetLang}
+        onSourceChange={handleSourceChange}
+        onTargetChange={handleTargetChange}
+        onSwap={handleSwap}
+      />
 
-      <form onSubmit={handleSubmit} className="rounded-lg border border-paperLine bg-white/60 p-4 shadow-sm">
-        <label htmlFor="teach-input" className="mb-2 block text-sm text-ink/60">
-          {mode === "translator"
-            ? "Wpisz słowo, frazę albo zdanie"
-            : "Zadaj pytanie o gramatykę"}
+      <form onSubmit={handleSubmit} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-200/50">
+        <label htmlFor="teach-input" className="mb-2 block text-sm font-medium text-slate-500">
+          Wpisz słowo, frazę albo zdanie
         </label>
         <textarea
           id="teach-input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={PLACEHOLDERS[mode]}
+          placeholder={'np. \u201Eserendipity\u201D albo \u201EShe don\u2019t like coffee.\u201D'}
           rows={3}
           maxLength={800}
-          className="w-full resize-none rounded-md border border-paperLine bg-white px-3 py-2 text-ink placeholder:text-ink/30 focus:border-chalk"
+          className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-800 placeholder:text-slate-300 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
         />
         <div className="mt-3 flex items-center justify-between">
-          <span className="text-xs text-ink/40">{input.length}/800</span>
+          <span className="text-xs text-slate-300">{input.length}/800</span>
           <button
             type="submit"
             disabled={loading || !input.trim()}
-            className="rounded-md bg-chalkDark px-5 py-2 font-medium text-paper transition-colors hover:bg-chalk disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-xl bg-indigo-600 px-6 py-2.5 font-semibold text-white shadow-md shadow-indigo-600/20 transition-all hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-600/30 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
           >
-            {loading ? "Sprawdzam…" : mode === "translator" ? "Przetłumacz" : "Wyjaśnij"}
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Tłumaczę…
+              </span>
+            ) : (
+              "Przetłumacz"
+            )}
           </button>
         </div>
       </form>
 
-      <div className="mt-5" aria-live="polite">
+      <div className="space-y-4" aria-live="polite">
         {error && (
-          <div className="rounded-md border border-pen/40 bg-penLight/40 p-3 text-sm text-pen">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-600">
             {error}
           </div>
         )}

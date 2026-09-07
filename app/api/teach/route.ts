@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { LANGUAGES, type LangCode } from "@/lib/languages";
 import { buildSystemPrompt, extractJson } from "@/lib/prompts";
-import type {
-  Mode,
-  TeachRequestBody,
-  TeachResponse,
-  GrammarResult,
-  TranslatorResult,
-} from "@/lib/types";
+import type { TeachRequestBody, TeachResponse, TranslatorResult } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -17,10 +11,6 @@ const VALID_CODES = new Set(LANGUAGES.map((l) => l.code));
 
 function isValidLangCode(value: unknown): value is LangCode {
   return typeof value === "string" && VALID_CODES.has(value as LangCode);
-}
-
-function isValidMode(value: unknown): value is Mode {
-  return value === "translator" || value === "grammar";
 }
 
 export async function POST(req: NextRequest) {
@@ -39,11 +29,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Nieprawidłowy JSON w żądaniu." }, { status: 400 });
   }
 
-  const { mode, sourceLang, targetLang, input } = body;
+  const { sourceLang, targetLang, input } = body;
 
-  if (!isValidMode(mode)) {
-    return NextResponse.json({ error: "Nieprawidłowy tryb. Użyj 'translator' lub 'grammar'." }, { status: 400 });
-  }
   if (!isValidLangCode(sourceLang) || !isValidLangCode(targetLang)) {
     return NextResponse.json({ error: "Nieprawidłowy kod języka." }, { status: 400 });
   }
@@ -63,7 +50,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const systemPrompt = buildSystemPrompt(mode, sourceLang, targetLang);
+  const systemPrompt = buildSystemPrompt(sourceLang, targetLang);
 
   let geminiRes: Response;
   try {
@@ -108,21 +95,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    if (mode === "translator") {
-      const parsed = extractJson<TranslatorResult>(textBlock);
-      const result: TeachResponse = { mode, translator: parsed };
-      return NextResponse.json(result);
-    } else {
-      const parsed = extractJson<GrammarResult>(textBlock);
-      const result: TeachResponse = { mode, grammar: parsed };
-      return NextResponse.json(result);
-    }
+    const parsed = extractJson<TranslatorResult>(textBlock);
+    const result: TeachResponse = { translator: parsed };
+    return NextResponse.json(result);
   } catch {
     return NextResponse.json(
-      {
-        error:
-          "Nie udało się przetworzyć odpowiedzi modelu jako JSON. Spróbuj ponownie.",
-      },
+      { error: "Nie udało się przetworzyć odpowiedzi modelu jako JSON. Spróbuj ponownie." },
       { status: 502 }
     );
   }

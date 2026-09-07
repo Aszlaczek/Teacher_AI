@@ -7,21 +7,13 @@
 }
 
 body {
-  background-color: #f7f2e6;
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent,
-    transparent 34px,
-    #d8cfb8 35px
-  );
-  background-attachment: local;
+  background-color: #f8fafc;
 }
 
-/* widoczny, dostępny focus ring zamiast domyślnego outline */
 :focus-visible {
-  outline: 2px solid #3b5d50;
+  outline: 2px solid #6366f1;
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: 8px;
 }
 
 @media (prefers-reduced-motion: reduce) {

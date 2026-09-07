@@ -1,25 +1,24 @@
 import type { Metadata } from "next";
-import { Fraunces, Work_Sans } from "next/font/google";
+import { Inter, Fraunces } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 const fraunces = Fraunces({
   subsets: ["latin", "latin-ext"],
-  weight: ["500", "600", "700"],
+  weight: ["600", "700", "800"],
   variable: "--font-fraunces",
   display: "swap",
 });
 
-const workSans = Work_Sans({
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600"],
-  variable: "--font-worksans",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
-  title: "Teacher_AI — tłumacz i nauczyciel gramatyki",
+  title: "Teacher_AI — tłumacz języki z AI",
   description:
-    "Tłumacz słowa, popraw zdania i zrozum gramatykę w czterech językach: polskim, angielskim, włoskim i francuskim.",
+    "Tłumacz słowa i zdania w czterech językach: polskim, angielskim, włoskim i francuskim. Przykłady użycia i poprawki błędów.",
 };
 
 export default function RootLayout({
@@ -30,7 +29,7 @@ export default function RootLayout({
   return (
     <html lang="pl">
       <body
-        className={`${fraunces.variable} ${workSans.variable} font-body text-ink antialiased`}
+        className={`${inter.variable} ${fraunces.variable} font-sans text-slate-800 antialiased`}
       >
         {children}
       </body>
