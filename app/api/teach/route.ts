@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { LANGUAGES, type LangCode } from "@/lib/languages";
 import { buildSystemPrompt, extractJson } from "@/lib/prompts";
-import type { TeachRequestBody, TeachResponse, TranslatorResult } from "@/lib/types";
+import type {
+  TeachRequestBody,
+  TeachResponse,
+  TranslatorResult,
+} from "@/lib/types";
 
 export const runtime = "nodejs";
 
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 const FREE_MODELS = [
-  "gemini-2.0-flash",
-  "gemini-2.0-flash-lite",
-  "gemini-1.5-flash",
-  "gemini-1.5-flash-8b",
+  "gemini-2.5-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-3.0-flash-preview",
+  "gemini-3.1-flash-lite-preview",
 ];
 const VALID_CODES = new Set(LANGUAGES.map((l) => l.code));
 
@@ -22,7 +26,7 @@ async function callGemini(
   apiKey: string,
   model: string,
   systemPrompt: string,
-  input: string
+  input: string,
 ): Promise<string> {
   const res = await fetch(
     `${GEMINI_URL}/${model}:generateContent?key=${apiKey}`,
@@ -37,7 +41,7 @@ async function callGemini(
           maxOutputTokens: 1024,
         },
       }),
-    }
+    },
   );
 
   if (!res.ok) {
@@ -55,8 +59,11 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
-      { error: "Brak GEMINI_API_KEY w konfiguracji serwera. Ustaw go w .env.local." },
-      { status: 500 }
+      {
+        error:
+          "Brak GEMINI_API_KEY w konfiguracji serwera. Ustaw go w .env.local.",
+      },
+      { status: 500 },
     );
   }
 
@@ -64,27 +71,36 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Nieprawidłowy JSON w żądaniu." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Nieprawidłowy JSON w żądaniu." },
+      { status: 400 },
+    );
   }
 
   const { sourceLang, targetLang, input } = body;
 
   if (!isValidLangCode(sourceLang) || !isValidLangCode(targetLang)) {
-    return NextResponse.json({ error: "Nieprawidłowy kod języka." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Nieprawidłowy kod języka." },
+      { status: 400 },
+    );
   }
   if (sourceLang === targetLang) {
     return NextResponse.json(
       { error: "Język źródłowy i docelowy muszą się różnić." },
-      { status: 400 }
+      { status: 400 },
     );
   }
   if (!input || typeof input !== "string" || !input.trim()) {
-    return NextResponse.json({ error: "Pole 'input' nie może być puste." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Pole 'input' nie może być puste." },
+      { status: 400 },
+    );
   }
   if (input.length > 800) {
     return NextResponse.json(
       { error: "Tekst jest zbyt długi (limit 800 znaków)." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -95,7 +111,12 @@ export async function POST(req: NextRequest) {
 
   for (const model of FREE_MODELS) {
     try {
-      const textBlock = await callGemini(apiKey, model, systemPrompt, trimmedInput);
+      const textBlock = await callGemini(
+        apiKey,
+        model,
+        systemPrompt,
+        trimmedInput,
+      );
       const parsed = extractJson<TranslatorResult>(textBlock);
       const result: TeachResponse = { translator: parsed };
       return NextResponse.json(result);
@@ -107,7 +128,9 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json(
-    { error: `Wszystkie modele były zajęte. Spróbuj ponownie.\n${errors.join("\n")}` },
-    { status: 502 }
+    {
+      error: `Wszystkie modele były zajęte. Spróbuj ponownie.\n${errors.join("\n")}`,
+    },
+    { status: 502 },
   );
 }
