@@ -6,11 +6,49 @@ import type { TeachRequestBody, TeachResponse, TranslatorResult } from "@/lib/ty
 export const runtime = "nodejs";
 
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models";
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const FREE_MODELS = [
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-lite",
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-8b",
+];
 const VALID_CODES = new Set(LANGUAGES.map((l) => l.code));
 
 function isValidLangCode(value: unknown): value is LangCode {
   return typeof value === "string" && VALID_CODES.has(value as LangCode);
+}
+
+async function callGemini(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  input: string
+): Promise<string> {
+  const res = await fetch(
+    `${GEMINI_URL}/${model}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents: [{ parts: [{ text: input }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1024,
+        },
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`${model} (${res.status}): ${detail.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error(`${model}: brak treści w odpowiedzi`);
+  return text;
 }
 
 export async function POST(req: NextRequest) {
@@ -51,57 +89,25 @@ export async function POST(req: NextRequest) {
   }
 
   const systemPrompt = buildSystemPrompt(sourceLang, targetLang);
+  const trimmedInput = input.trim();
 
-  let geminiRes: Response;
-  try {
-    geminiRes = await fetch(
-      `${GEMINI_URL}/${MODEL}:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents: [{ parts: [{ text: input.trim() }] }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 1024,
-          },
-        }),
-      }
-    );
-  } catch {
-    return NextResponse.json(
-      { error: "Nie udało się połączyć z Gemini API. Sprawdź połączenie sieciowe." },
-      { status: 502 }
-    );
+  const errors: string[] = [];
+
+  for (const model of FREE_MODELS) {
+    try {
+      const textBlock = await callGemini(apiKey, model, systemPrompt, trimmedInput);
+      const parsed = extractJson<TranslatorResult>(textBlock);
+      const result: TeachResponse = { translator: parsed };
+      return NextResponse.json(result);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(msg);
+      continue;
+    }
   }
 
-  if (!geminiRes.ok) {
-    const detail = await geminiRes.text().catch(() => "");
-    return NextResponse.json(
-      { error: `Gemini API zwróciło błąd (${geminiRes.status}): ${detail.slice(0, 300)}` },
-      { status: 502 }
-    );
-  }
-
-  const data = await geminiRes.json();
-  const textBlock = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!textBlock) {
-    return NextResponse.json(
-      { error: "Model nie zwrócił treści tekstowej." },
-      { status: 502 }
-    );
-  }
-
-  try {
-    const parsed = extractJson<TranslatorResult>(textBlock);
-    const result: TeachResponse = { translator: parsed };
-    return NextResponse.json(result);
-  } catch {
-    return NextResponse.json(
-      { error: "Nie udało się przetworzyć odpowiedzi modelu jako JSON. Spróbuj ponownie." },
-      { status: 502 }
-    );
-  }
+  return NextResponse.json(
+    { error: `Wszystkie modele były zajęte. Spróbuj ponownie.\n${errors.join("\n")}` },
+    { status: 502 }
+  );
 }
