@@ -11,8 +11,8 @@ import type {
 
 export const runtime = "nodejs";
 
-const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
+const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 const VALID_CODES = new Set(LANGUAGES.map((l) => l.code));
 
 function isValidLangCode(value: unknown): value is LangCode {
@@ -24,10 +24,10 @@ function isValidMode(value: unknown): value is Mode {
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
-      { error: "Brak ANTHROPIC_API_KEY w konfiguracji serwera. Ustaw go w .env.local." },
+      { error: "Brak GEMINI_API_KEY w konfiguracji serwera. Ustaw go w .env.local." },
       { status: 500 }
     );
   }
@@ -65,43 +65,42 @@ export async function POST(req: NextRequest) {
 
   const systemPrompt = buildSystemPrompt(mode, sourceLang, targetLang);
 
-  let anthropicRes: Response;
+  let geminiRes: Response;
   try {
-    anthropicRes = await fetch(ANTHROPIC_URL, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 1024,
-        system: systemPrompt,
-        messages: [{ role: "user", content: input.trim() }],
-      }),
-    });
+    geminiRes = await fetch(
+      `${GEMINI_URL}/${MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ parts: [{ text: input.trim() }] }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 1024,
+          },
+        }),
+      }
+    );
   } catch {
     return NextResponse.json(
-      { error: "Nie udało się połączyć z Anthropic API. Sprawdź połączenie sieciowe." },
+      { error: "Nie udało się połączyć z Gemini API. Sprawdź połączenie sieciowe." },
       { status: 502 }
     );
   }
 
-  if (!anthropicRes.ok) {
-    const detail = await anthropicRes.text().catch(() => "");
+  if (!geminiRes.ok) {
+    const detail = await geminiRes.text().catch(() => "");
     return NextResponse.json(
-      { error: `Anthropic API zwróciło błąd (${anthropicRes.status}): ${detail.slice(0, 300)}` },
+      { error: `Gemini API zwróciło błąd (${geminiRes.status}): ${detail.slice(0, 300)}` },
       { status: 502 }
     );
   }
 
-  const data = await anthropicRes.json();
-  const textBlock = (data?.content ?? []).find(
-    (block: { type: string }) => block.type === "text"
-  );
+  const data = await geminiRes.json();
+  const textBlock = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-  if (!textBlock?.text) {
+  if (!textBlock) {
     return NextResponse.json(
       { error: "Model nie zwrócił treści tekstowej." },
       { status: 502 }
@@ -110,15 +109,15 @@ export async function POST(req: NextRequest) {
 
   try {
     if (mode === "translator") {
-      const parsed = extractJson<TranslatorResult>(textBlock.text);
+      const parsed = extractJson<TranslatorResult>(textBlock);
       const result: TeachResponse = { mode, translator: parsed };
       return NextResponse.json(result);
     } else {
-      const parsed = extractJson<GrammarResult>(textBlock.text);
+      const parsed = extractJson<GrammarResult>(textBlock);
       const result: TeachResponse = { mode, grammar: parsed };
       return NextResponse.json(result);
     }
-  } catch (err) {
+  } catch {
     return NextResponse.json(
       {
         error:

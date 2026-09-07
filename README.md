@@ -1,7 +1,7 @@
 # Teacher_AI
 
 Osobisty nauczyciel języków w Next.js. Wpisujesz słowo, zdanie albo pytanie
-o gramatykę — aplikacja łączy się z Claude API i zwraca tłumaczenie,
+o gramatykę — aplikacja łączy się z Google Gemini API i zwraca tłumaczenie,
 przykłady użycia, poprawki gramatyczne albo wyjaśnienie zasady.
 
 ## Dwa tryby
@@ -23,7 +23,7 @@ na ekranie.
 app/
   page.tsx              — strona główna
   layout.tsx             — fonty, metadata
-  api/teach/route.ts     — server-side endpoint wywołujący Anthropic API
+  api/teach/route.ts     — server-side endpoint wywołujący Gemini API
 components/
   TeacherPanel.tsx        — stan formularza + wywołanie /api/teach
   LanguageBar.tsx         — wybór języka źródłowego/docelowego
@@ -35,7 +35,7 @@ lib/
   types.ts                 — wspólne typy TypeScript
 ```
 
-Klucz API nigdy nie trafia do przeglądarki — cała komunikacja z Anthropic
+Klucz API nigdy nie trafia do przeglądarki — cała komunikacja z Gemini
 odbywa się w `app/api/teach/route.ts`, który działa wyłącznie po stronie
 serwera (`export const runtime = "nodejs"`).
 
@@ -44,9 +44,12 @@ serwera (`export const runtime = "nodejs"`).
 ```bash
 npm install
 cp .env.local.example .env.local
-# wklej swój klucz do .env.local: ANTHROPIC_API_KEY=sk-ant-...
+# wklej swój klucz do .env.local: GEMINI_API_KEY=AIza...
 npm run dev
 ```
+
+Klucz API Gemini jest **darmowy** — pobierz go na:
+https://aistudio.google.com/apikey
 
 Aplikacja wystartuje na `http://localhost:3000`.
 
@@ -69,7 +72,6 @@ git push -u origin main
 
 ## Możliwe rozszerzenia
 
-- Historia zapytań zapisywana lokalnie (localStorage w wersji poza
-  Claude.ai artifacts).
+- Historia zapytań zapisywana lokalnie (localStorage).
 - Wsparcie dla wymowy (audio) w przykładach.
 - Tryb "fiszek" generowany z historii tłumaczeń.
