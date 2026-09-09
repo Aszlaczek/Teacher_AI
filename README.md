@@ -79,10 +79,6 @@ The app will start on `http://localhost:3000`.
 - Pronunciation support (audio) for example sentences.
 - A "flashcards" mode generated from translation history.
 
-### License
-
-No license set — add a `LICENSE` file if the repository is meant to be publicly reusable.
-
 ---
 
 <a id="polski"></a>
@@ -160,6 +156,3 @@ Aplikacja wystartuje na `http://localhost:3000`.
 - Wsparcie dla wymowy (audio) w przykładowych zdaniach.
 - Tryb "fiszek" generowany z historii tłumaczeń.
 
-### Licencja
-
-Brak licencji ustawionej — dodaj plik `LICENSE`, jeśli repozytorium ma być publicznie reużywalne.
